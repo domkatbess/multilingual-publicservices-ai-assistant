@@ -141,8 +141,8 @@ This plan guides the implementation of a serverless African Language Assistant u
 - [x] 7. Checkpoint - Verify core services
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 8. Implement prompt engineering and response generation
-  - [ ] 8.1 Create prompt template manager
+- [x] 8. Implement prompt engineering and response generation
+  - [x] 8.1 Create prompt template manager
     - Define system prompt template with placeholders for language and service category
     - Implement prompt selection based on service category
     - Government: focus on documents, procedures, eligibility
@@ -155,7 +155,7 @@ This plan guides the implementation of a serverless African Language Assistant u
     - **Property 11: Service-Specific Prompt Selection**
     - **Validates: Requirements 4.2**
   
-  - [ ] 8.3 Implement response generator service
+  - [x] 8.3 Implement response generator service
     - Build context from session conversation history
     - Construct prompt with system template, context, and user query
     - Invoke Bedrock to generate response
