@@ -189,15 +189,15 @@ This plan guides the implementation of a serverless African Language Assistant u
     - Implement graceful degradation (text-only on Polly failure)
     - _Requirements: 5.1, 5.3, 5.4, 9.2_
 
-- [ ] 10. Implement speech-to-text functionality
-  - [ ] 10.1 Create Transcribe client wrapper
+- [x] 10. Implement speech-to-text functionality
+  - [x] 10.1 Create Transcribe client wrapper
     - Initialize Transcribe client
     - Configure standard transcription mode (not real-time)
     - Implement transcription job submission
     - Implement transcription result retrieval
     - _Requirements: 2.3, 11.6_
   
-  - [ ] 10.2 Implement transcription service
+  - [x] 10.2 Implement transcription service
     - Submit audio file to Transcribe
     - Poll for transcription completion
     - Retrieve transcribed text
