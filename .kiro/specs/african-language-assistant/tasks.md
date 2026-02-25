@@ -70,15 +70,15 @@ This plan guides the implementation of a serverless African Language Assistant u
 - [x] 3. Checkpoint - Verify core utilities
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 4. Implement language detection and classification
-  - [ ] 4.1 Create Bedrock client wrapper
+- [x] 4. Implement language detection and classification
+  - [x] 4.1 Create Bedrock client wrapper
     - Initialize Bedrock runtime client
     - Implement method to invoke Bedrock with prompt and parameters
     - Configure temperature to 0.7
     - Implement error handling and retry logic
     - _Requirements: 4.1, 4.3_
   
-  - [ ] 4.2 Implement language detection service
+  - [x] 4.2 Implement language detection service
     - Use Bedrock to detect language from text input
     - Identify if language is one of the five supported languages
     - Return detected language code (ha, yo, ig, ff, en)
@@ -90,7 +90,7 @@ This plan guides the implementation of a serverless African Language Assistant u
     - **Property 8: Language Support Identification**
     - **Validates: Requirements 1.3, 3.1, 3.2_
   
-  - [ ] 4.4 Implement service category classifier
+  - [x] 4.4 Implement service category classifier
     - Use Bedrock to classify query into one of four categories
     - Return exactly one category: Government, Health, Education, or Emergency
     - _Requirements: 1.4, 8.1_
