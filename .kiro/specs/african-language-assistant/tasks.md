@@ -67,7 +67,7 @@ This plan guides the implementation of a serverless African Language Assistant u
     - Add support for language and service category dimensions
     - _Requirements: 12.3, 12.4_
 
-- [ ] 3. Checkpoint - Verify core utilities
+- [x] 3. Checkpoint - Verify core utilities
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 4. Implement language detection and classification
