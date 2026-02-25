@@ -138,7 +138,7 @@ This plan guides the implementation of a serverless African Language Assistant u
     - **Property 28: Cache Privacy**
     - **Validates: Requirements 7.1, 7.3, 7.4, 7.5, 13.5**
 
-- [ ] 7. Checkpoint - Verify core services
+- [x] 7. Checkpoint - Verify core services
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 8. Implement prompt engineering and response generation
