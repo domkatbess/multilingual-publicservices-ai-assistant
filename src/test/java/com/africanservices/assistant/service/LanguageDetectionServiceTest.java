@@ -19,11 +19,14 @@ class LanguageDetectionServiceTest {
     @Mock
     private BedrockService bedrockService;
 
+    @Mock
+    private GracefulDegradationService gracefulDegradationService;
+
     private LanguageDetectionService languageDetectionService;
 
     @BeforeEach
     void setUp() {
-        languageDetectionService = new LanguageDetectionService(bedrockService);
+        languageDetectionService = new LanguageDetectionService(bedrockService, gracefulDegradationService);
     }
 
     @Test
@@ -136,6 +139,7 @@ class LanguageDetectionServiceTest {
         String text = "Some text";
         doThrow(new BedrockService.BedrockException("Service unavailable"))
                 .when(bedrockService).invokeModel(anyString());
+        when(gracefulDegradationService.handleLanguageDetectionFailure()).thenReturn("en");
 
         // Act
         String result = languageDetectionService.detectLanguage(text);
@@ -143,6 +147,7 @@ class LanguageDetectionServiceTest {
         // Assert
         assertEquals("en", result);
         verify(bedrockService, times(1)).invokeModel(anyString());
+        verify(gracefulDegradationService, times(1)).handleLanguageDetectionFailure();
     }
 
     @Test

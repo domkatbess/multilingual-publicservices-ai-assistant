@@ -35,6 +35,9 @@ class ResponseGeneratorServiceTest {
     @Mock
     private PromptTemplateManager promptTemplateManager;
 
+    @Mock
+    private GracefulDegradationService gracefulDegradationService;
+
     private ResponseGeneratorService responseGeneratorService;
 
     @BeforeEach
@@ -44,7 +47,8 @@ class ResponseGeneratorServiceTest {
             bedrockService,
             sessionManagerService,
             cacheManagerService,
-            promptTemplateManager
+            promptTemplateManager,
+            gracefulDegradationService
         );
     }
 
@@ -276,8 +280,7 @@ class ResponseGeneratorServiceTest {
 
         // Mock cache miss on first call
         when(cacheManagerService.getCachedResponse(userQuery, language))
-            .thenReturn(Optional.empty())
-            .thenReturn(Optional.of(cachedFallback)); // Return cached on second call (fallback)
+            .thenReturn(Optional.empty());
 
         // Mock session context
         when(sessionManagerService.getConversationContext(sessionId))
@@ -291,12 +294,17 @@ class ResponseGeneratorServiceTest {
         when(bedrockService.invokeModel(anyString()))
             .thenThrow(new BedrockException("Service unavailable"));
 
+        // Mock graceful degradation returning cached response
+        when(gracefulDegradationService.handleBedrockUnavailable(userQuery, language, category.name()))
+            .thenReturn(cachedFallback);
+
         // Execute
         String response = responseGeneratorService.generateResponse(sessionId, userQuery, language, category);
 
         // Verify fallback was used
         assertNotNull(response);
         assertEquals(cachedFallback, response);
+        verify(gracefulDegradationService).handleBedrockUnavailable(userQuery, language, category.name());
     }
 
     @Test
@@ -305,6 +313,7 @@ class ResponseGeneratorServiceTest {
         String userQuery = "What documents do I need?";
         String language = "en";
         ServiceCategory category = ServiceCategory.GOVERNMENT;
+        String fallbackMessage = "I apologize, but I'm having trouble answering your question about government services.";
 
         // Mock cache miss
         when(cacheManagerService.getCachedResponse(userQuery, language))
@@ -322,12 +331,17 @@ class ResponseGeneratorServiceTest {
         when(bedrockService.invokeModel(anyString()))
             .thenThrow(new BedrockException("Service unavailable"));
 
+        // Mock graceful degradation returning fallback message
+        when(gracefulDegradationService.handleBedrockUnavailable(userQuery, language, category.name()))
+            .thenReturn(fallbackMessage);
+
         // Execute
         String response = responseGeneratorService.generateResponse(sessionId, userQuery, language, category);
 
         // Verify fallback message was returned
         assertNotNull(response);
-        assertTrue(response.contains("apologize") || response.contains("trouble"));
+        assertEquals(fallbackMessage, response);
+        verify(gracefulDegradationService).handleBedrockUnavailable(userQuery, language, category.name());
     }
 
     @Test

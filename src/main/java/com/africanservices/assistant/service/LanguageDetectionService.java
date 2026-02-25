@@ -32,10 +32,13 @@ public class LanguageDetectionService {
     private static final String DEFAULT_LANGUAGE = "en";
     
     private final BedrockService bedrockService;
+    private final GracefulDegradationService gracefulDegradationService;
 
     @Autowired
-    public LanguageDetectionService(BedrockService bedrockService) {
+    public LanguageDetectionService(BedrockService bedrockService, 
+                                   GracefulDegradationService gracefulDegradationService) {
         this.bedrockService = bedrockService;
+        this.gracefulDegradationService = gracefulDegradationService;
     }
 
     /**
@@ -69,7 +72,8 @@ public class LanguageDetectionService {
             
         } catch (Exception e) {
             logger.error("Language detection failed: {}", e.getMessage(), e);
-            return DEFAULT_LANGUAGE;
+            // Requirement 9.4: Language detection failure handler (default to English)
+            return gracefulDegradationService.handleLanguageDetectionFailure();
         }
     }
 

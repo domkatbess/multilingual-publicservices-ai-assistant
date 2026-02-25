@@ -26,17 +26,20 @@ public class ResponseGeneratorService {
     private final SessionManagerService sessionManagerService;
     private final CacheManagerService cacheManagerService;
     private final PromptTemplateManager promptTemplateManager;
+    private final GracefulDegradationService gracefulDegradationService;
 
     @Autowired
     public ResponseGeneratorService(
             BedrockService bedrockService,
             SessionManagerService sessionManagerService,
             CacheManagerService cacheManagerService,
-            PromptTemplateManager promptTemplateManager) {
+            PromptTemplateManager promptTemplateManager,
+            GracefulDegradationService gracefulDegradationService) {
         this.bedrockService = bedrockService;
         this.sessionManagerService = sessionManagerService;
         this.cacheManagerService = cacheManagerService;
         this.promptTemplateManager = promptTemplateManager;
+        this.gracefulDegradationService = gracefulDegradationService;
     }
 
     /**
@@ -192,6 +195,7 @@ public class ResponseGeneratorService {
      * Returns a cached response or fallback message in the user's language.
      * 
      * Requirement 4.6: Implement graceful degradation (cached/fallback responses)
+     * Requirement 9.1: Bedrock unavailable handler (use cache or fallback)
      * 
      * @param userQuery User's query
      * @param language Target language
@@ -201,17 +205,9 @@ public class ResponseGeneratorService {
     private String handleBedrockFailure(String userQuery, String language, ServiceCategory category) {
         logger.warn("Attempting graceful degradation for Bedrock failure");
         
-        // Try to get a cached response first
-        Optional<String> cachedResponse = cacheManagerService.getCachedResponse(userQuery, language);
-        if (cachedResponse.isPresent()) {
-            logger.info("Returning cached response as fallback");
-            return cachedResponse.get();
-        }
-        
-        // Return a fallback message in the user's language
-        String fallbackMessage = getFallbackMessage(language, category);
-        logger.info("Returning fallback message");
-        return fallbackMessage;
+        // Use the graceful degradation service
+        String categoryString = category != null ? category.name() : "GOVERNMENT";
+        return gracefulDegradationService.handleBedrockUnavailable(userQuery, language, categoryString);
     }
 
     /**
