@@ -230,7 +230,7 @@ This plan guides the implementation of a serverless African Language Assistant u
     - Emit CloudWatch metrics
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 3.4, 6.2, 6.4, 7.2, 7.3, 7.5, 9.5, 12.1, 12.2, 12.3, 12.4, 15.1, 15.4_
   
-  - [ ] 12.2 Configure Lambda function settings
+  - [x] 12.2 Configure Lambda function settings
     - Set memory to 512MB
     - Set timeout to 30 seconds
     - Set concurrent execution limit to 10

@@ -13,6 +13,11 @@ Globals:
         CACHE_TABLE: !Ref ResponseCacheTable
         AUDIO_BUCKET: !Ref AudioBucket
         AWS_REGION: !Ref AWS::Region
+        BEDROCK_ENDPOINT: !Sub https://bedrock-runtime.${AWS::Region}.amazonaws.com
+        POLLY_ENDPOINT: !Sub https://polly.${AWS::Region}.amazonaws.com
+        TRANSCRIBE_ENDPOINT: !Sub https://transcribe.${AWS::Region}.amazonaws.com
+        DYNAMODB_ENDPOINT: !Sub https://dynamodb.${AWS::Region}.amazonaws.com
+        S3_ENDPOINT: !Sub https://s3.${AWS::Region}.amazonaws.com
 
 Parameters:
   Environment:
