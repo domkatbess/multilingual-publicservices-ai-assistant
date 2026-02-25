@@ -1,0 +1,322 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: African Language Assistant - Serverless Infrastructure
+
+Globals:
+  Function:
+    Runtime: java21
+    MemorySize: 512
+    Timeout: 30
+    Environment:
+      Variables:
+        SESSIONS_TABLE: !Ref SessionsTable
+        CACHE_TABLE: !Ref ResponseCacheTable
+        AUDIO_BUCKET: !Ref AudioBucket
+        AWS_REGION: !Ref AWS::Region
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+    Description: Environment name
+
+Resources:
+  # API Gateway
+  LanguageAssistantApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub african-language-assistant-${Environment}
+      StageName: !Ref Environment
+      Auth:
+        ApiKeyRequired: true
+        UsagePlan:
+          CreateUsagePlan: PER_API
+          UsagePlanName: !Sub language-assistant-usage-plan-${Environment}
+          Quota:
+            Limit: 10000
+            Period: MONTH
+          Throttle:
+            RateLimit: 10
+            BurstLimit: 20
+      Cors:
+        AllowMethods: "'POST, GET, OPTIONS'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+        AllowOrigin: "'*'"
+
+  # Lambda Functions
+  InputHandlerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub language-assistant-input-handler-${Environment}
+      Handler: org.springframework.cloud.function.adapter.aws.FunctionInvoker::handleRequest
+      CodeUri: target/language-assistant-1.0.0-aws.jar
+      ReservedConcurrentExecutions: 10
+      Environment:
+        Variables:
+          SPRING_CLOUD_FUNCTION_DEFINITION: inputHandler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SessionsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ResponseCacheTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+              Resource: '*'
+      Events:
+        TextInput:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LanguageAssistantApi
+            Path: /query
+            Method: POST
+      LoggingConfig:
+        LogGroup: !Ref InputHandlerLogGroup
+
+  AudioHandlerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub language-assistant-audio-handler-${Environment}
+      Handler: org.springframework.cloud.function.adapter.aws.FunctionInvoker::handleRequest
+      CodeUri: target/language-assistant-1.0.0-aws.jar
+      ReservedConcurrentExecutions: 10
+      Environment:
+        Variables:
+          SPRING_CLOUD_FUNCTION_DEFINITION: audioHandler
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref AudioBucket
+        - Statement:
+            - Effect: Allow
+              Action:
+                - transcribe:StartTranscriptionJob
+                - transcribe:GetTranscriptionJob
+              Resource: '*'
+      Events:
+        AudioInput:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LanguageAssistantApi
+            Path: /audio
+            Method: POST
+      LoggingConfig:
+        LogGroup: !Ref AudioHandlerLogGroup
+
+  TranscriptionProcessorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub language-assistant-transcription-processor-${Environment}
+      Handler: org.springframework.cloud.function.adapter.aws.FunctionInvoker::handleRequest
+      CodeUri: target/language-assistant-1.0.0-aws.jar
+      ReservedConcurrentExecutions: 10
+      Environment:
+        Variables:
+          SPRING_CLOUD_FUNCTION_DEFINITION: transcriptionProcessor
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref AudioBucket
+        - Statement:
+            - Effect: Allow
+              Action:
+                - transcribe:GetTranscriptionJob
+              Resource: '*'
+      Events:
+        S3Event:
+          Type: S3
+          Properties:
+            Bucket: !Ref AudioBucket
+            Events: s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: suffix
+                    Value: .json
+      LoggingConfig:
+        LogGroup: !Ref TranscriptionProcessorLogGroup
+
+  TextToSpeechFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub language-assistant-tts-${Environment}
+      Handler: org.springframework.cloud.function.adapter.aws.FunctionInvoker::handleRequest
+      CodeUri: target/language-assistant-1.0.0-aws.jar
+      ReservedConcurrentExecutions: 10
+      Environment:
+        Variables:
+          SPRING_CLOUD_FUNCTION_DEFINITION: textToSpeech
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref AudioBucket
+        - Statement:
+            - Effect: Allow
+              Action:
+                - polly:SynthesizeSpeech
+              Resource: '*'
+      LoggingConfig:
+        LogGroup: !Ref TTSLogGroup
+
+  # DynamoDB Tables
+  SessionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub language-assistant-sessions-${Environment}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: sessionId
+          AttributeType: S
+        - AttributeName: userId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: sessionId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: UserIdIndex
+          KeySchema:
+            - AttributeName: userId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      SSESpecification:
+        SSEEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: false
+
+  ResponseCacheTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub language-assistant-cache-${Environment}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: queryHash
+          AttributeType: S
+        - AttributeName: language
+          AttributeType: S
+      KeySchema:
+        - AttributeName: queryHash
+          KeyType: HASH
+        - AttributeName: language
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      SSESpecification:
+        SSEEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: false
+
+  # S3 Bucket
+  AudioBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub language-assistant-audio-${Environment}-${AWS::AccountId}
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteAfter1Day
+            Status: Enabled
+            ExpirationInDays: 1
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins:
+              - '*'
+            AllowedMethods:
+              - GET
+              - PUT
+              - POST
+            AllowedHeaders:
+              - '*'
+            MaxAge: 3000
+
+  # CloudWatch Log Groups
+  InputHandlerLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/language-assistant-input-handler-${Environment}
+      RetentionInDays: 7
+
+  AudioHandlerLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/language-assistant-audio-handler-${Environment}
+      RetentionInDays: 7
+
+  TranscriptionProcessorLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/language-assistant-transcription-processor-${Environment}
+      RetentionInDays: 7
+
+  TTSLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/language-assistant-tts-${Environment}
+      RetentionInDays: 7
+
+  # CloudWatch Alarms
+  ErrorRateAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub language-assistant-error-rate-${Environment}
+      AlarmDescription: Triggers when error rate exceeds 5%
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+
+  LatencyAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub language-assistant-latency-${Environment}
+      AlarmDescription: Triggers when p95 latency exceeds 3 seconds
+      MetricName: Duration
+      Namespace: AWS/Lambda
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 3000
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+
+Outputs:
+  ApiEndpoint:
+    Description: API Gateway endpoint URL
+    Value: !Sub https://${LanguageAssistantApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}
+    Export:
+      Name: !Sub ${AWS::StackName}-ApiEndpoint
+
+  SessionsTableName:
+    Description: DynamoDB Sessions table name
+    Value: !Ref SessionsTable
+    Export:
+      Name: !Sub ${AWS::StackName}-SessionsTable
+
+  CacheTableName:
+    Description: DynamoDB Cache table name
+    Value: !Ref ResponseCacheTable
+    Export:
+      Name: !Sub ${AWS::StackName}-CacheTable
+
+  AudioBucketName:
+    Description: S3 Audio bucket name
+    Value: !Ref AudioBucket
+    Export:
+      Name: !Sub ${AWS::StackName}-AudioBucket

@@ -1,0 +1,49 @@
+spring:
+  application:
+    name: african-language-assistant
+  cloud:
+    function:
+      definition: inputHandler;audioHandler;transcriptionProcessor;textToSpeech
+
+aws:
+  region: ${AWS_REGION:us-east-1}
+  dynamodb:
+    sessions-table: ${SESSIONS_TABLE:language-assistant-sessions-dev}
+    cache-table: ${CACHE_TABLE:language-assistant-cache-dev}
+  s3:
+    audio-bucket: ${AUDIO_BUCKET:language-assistant-audio-dev}
+  bedrock:
+    model-id: anthropic.claude-v2
+    temperature: 0.7
+    max-tokens: 1000
+  polly:
+    voices:
+      ha: Zeina  # Hausa - using Arabic voice as placeholder
+      yo: Joanna # Yoruba - using English voice as placeholder
+      ig: Joanna # Igbo - using English voice as placeholder
+      ff: Zeina  # Fulfulde - using Arabic voice as placeholder
+      en: Joanna # English
+    engine: neural
+  transcribe:
+    language-code: en-US
+
+assistant:
+  session:
+    ttl-minutes: 30
+    context-window: 5
+  cache:
+    ttl-hours: 24
+  audio:
+    url-expiration-hours: 1
+    max-size-mb: 10
+  input:
+    max-length: 1000
+  rate-limit:
+    requests-per-minute: 10
+
+logging:
+  level:
+    root: INFO
+    com.africanservices: DEBUG
+  pattern:
+    console: '{"timestamp":"%d{ISO8601}","level":"%level","logger":"%logger","thread":"%thread","message":"%message","correlation_id":"%X{correlationId}"}%n'

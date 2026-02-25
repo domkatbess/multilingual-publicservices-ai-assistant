@@ -1,0 +1,28 @@
+{
+  "body": "{\"userId\":\"test-user-123\",\"sessionId\":\"test-session-456\",\"message\":\"How do I apply for a birth certificate?\",\"preferredLanguage\":\"en\"}",
+  "resource": "/query",
+  "path": "/query",
+  "httpMethod": "POST",
+  "headers": {
+    "Content-Type": "application/json",
+    "X-Api-Key": "test-api-key"
+  },
+  "queryStringParameters": null,
+  "pathParameters": null,
+  "stageVariables": null,
+  "requestContext": {
+    "accountId": "123456789012",
+    "apiId": "test-api-id",
+    "protocol": "HTTP/1.1",
+    "httpMethod": "POST",
+    "path": "/dev/query",
+    "stage": "dev",
+    "requestId": "test-request-id",
+    "requestTime": "09/Apr/2015:12:34:56 +0000",
+    "requestTimeEpoch": 1428582896000,
+    "identity": {
+      "sourceIp": "127.0.0.1"
+    }
+  },
+  "isBase64Encoded": false
+}
