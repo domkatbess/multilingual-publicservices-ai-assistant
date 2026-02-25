@@ -168,8 +168,8 @@ This plan guides the implementation of a serverless African Language Assistant u
     - **Property 29: Session Terminology Consistency**
     - **Validates: Requirements 1.5, 4.4, 14.5**
 
-- [ ] 9. Implement text-to-speech functionality
-  - [ ] 9.1 Create Polly client wrapper
+- [x] 9. Implement text-to-speech functionality
+  - [x] 9.1 Create Polly client wrapper
     - Initialize Polly client
     - Implement voice selection based on language
     - Configure neural engine for supported languages
@@ -182,7 +182,7 @@ This plan guides the implementation of a serverless African Language Assistant u
     - **Property 24: Voice Type Cost Optimization**
     - **Validates: Requirements 5.2, 5.5, 11.5**
   
-  - [ ] 9.3 Implement TTS service
+  - [x] 9.3 Implement TTS service
     - Convert text to speech using Polly
     - Store audio file in S3
     - Generate presigned URL with 1-hour expiration
