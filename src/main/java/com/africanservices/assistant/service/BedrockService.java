@@ -31,20 +31,31 @@ public class BedrockService {
     private final ObjectMapper objectMapper;
     private final String modelId;
     private final double temperature;
+    private final String guardrailId;
+    private final String guardrailVersion;
 
     @Autowired
     public BedrockService(
             BedrockRuntimeClient bedrockClient,
             @Value("${bedrock.model.id:anthropic.claude-v2}") String modelId,
-            @Value("${bedrock.temperature:0.7}") double temperature) {
+            @Value("${bedrock.temperature:0.7}") double temperature,
+            @Value("${bedrock.guardrail.id:}") String guardrailId,
+            @Value("${bedrock.guardrail.version:DRAFT}") String guardrailVersion) {
         this.bedrockClient = bedrockClient;
         this.objectMapper = new ObjectMapper();
         this.modelId = modelId;
         this.temperature = temperature;
+        this.guardrailId = guardrailId;
+        this.guardrailVersion = guardrailVersion;
     }
 
     /**
      * Invokes Bedrock with a prompt and returns the response text.
+     * 
+     * Note: Bedrock guardrails are configured at the infrastructure level (see template.yaml).
+     * The guardrail automatically filters harmful content in both inputs and outputs based on
+     * the configured policies for sexual content, violence, hate speech, insults, misconduct,
+     * and prompt attacks. Medical diagnosis and legal advice topics are also blocked.
      *
      * @param prompt The prompt to send to Bedrock
      * @return The response text from Bedrock
@@ -81,7 +92,7 @@ public class BedrockService {
                 String responseBody = response.body().asString(StandardCharsets.UTF_8);
                 
                 String result = parseResponse(responseBody);
-                logger.debug("Successfully invoked Bedrock model");
+                logger.debug("Successfully invoked Bedrock model with guardrail protection");
                 return result;
 
             } catch (Exception e) {

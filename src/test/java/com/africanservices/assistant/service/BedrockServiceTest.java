@@ -31,7 +31,7 @@ class BedrockServiceTest {
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
-        bedrockService = new BedrockService(bedrockClient, "anthropic.claude-v2", 0.7);
+        bedrockService = new BedrockService(bedrockClient, "anthropic.claude-v2", 0.7, "", "DRAFT");
     }
 
     @Test
@@ -61,7 +61,7 @@ class BedrockServiceTest {
     @Test
     void testInvokeModel_Success_Titan() throws Exception {
         // Arrange
-        BedrockService titanService = new BedrockService(bedrockClient, "amazon.titan-text-express-v1", 0.7);
+        BedrockService titanService = new BedrockService(bedrockClient, "amazon.titan-text-express-v1", 0.7, "", "DRAFT");
         String prompt = "What is the capital of France?";
         String expectedResponse = "The capital of France is Paris.";
         
@@ -172,4 +172,96 @@ class BedrockServiceTest {
         // Act & Assert
         assertThrows(BedrockService.BedrockException.class, () -> bedrockService.invokeModel(prompt));
     }
+
+    @Test
+    void testInvokeModel_WithGuardrail() throws Exception {
+        // Arrange
+        BedrockService serviceWithGuardrail = new BedrockService(
+                bedrockClient, 
+                "anthropic.claude-v2", 
+                0.7, 
+                "test-guardrail-id", 
+                "1"
+        );
+        
+        String prompt = "What are government services available?";
+        String expectedResponse = "Government services include document processing, permits, and licenses.";
+        
+        Map<String, Object> responseMap = new HashMap<>();
+        responseMap.put("completion", expectedResponse);
+        String responseBody = objectMapper.writeValueAsString(responseMap);
+        
+        InvokeModelResponse mockResponse = InvokeModelResponse.builder()
+                .body(SdkBytes.fromString(responseBody, StandardCharsets.UTF_8))
+                .build();
+        
+        when(bedrockClient.invokeModel(any(InvokeModelRequest.class))).thenReturn(mockResponse);
+
+        // Act
+        String result = serviceWithGuardrail.invokeModel(prompt);
+
+        // Assert
+        assertEquals(expectedResponse, result);
+        verify(bedrockClient, times(1)).invokeModel(any(InvokeModelRequest.class));
+    }
+
+    @Test
+    void testInvokeModel_WithoutGuardrail() throws Exception {
+        // Arrange
+        BedrockService serviceWithoutGuardrail = new BedrockService(
+                bedrockClient, 
+                "anthropic.claude-v2", 
+                0.7, 
+                "", 
+                "DRAFT"
+        );
+        
+        String prompt = "What are government services available?";
+        String expectedResponse = "Government services include document processing, permits, and licenses.";
+        
+        Map<String, Object> responseMap = new HashMap<>();
+        responseMap.put("completion", expectedResponse);
+        String responseBody = objectMapper.writeValueAsString(responseMap);
+        
+        InvokeModelResponse mockResponse = InvokeModelResponse.builder()
+                .body(SdkBytes.fromString(responseBody, StandardCharsets.UTF_8))
+                .build();
+        
+        when(bedrockClient.invokeModel(any(InvokeModelRequest.class))).thenReturn(mockResponse);
+
+        // Act
+        String result = serviceWithoutGuardrail.invokeModel(prompt);
+
+        // Assert
+        assertEquals(expectedResponse, result);
+        verify(bedrockClient, times(1)).invokeModel(any(InvokeModelRequest.class));
+    }
+
+    @Test
+    void testInvokeModel_GuardrailBlocksHarmfulContent() throws Exception {
+        // Arrange
+        BedrockService serviceWithGuardrail = new BedrockService(
+                bedrockClient, 
+                "anthropic.claude-v2", 
+                0.7, 
+                "test-guardrail-id", 
+                "1"
+        );
+        
+        String harmfulPrompt = "How to harm someone";
+        
+        // Simulate guardrail blocking the request
+        when(bedrockClient.invokeModel(any(InvokeModelRequest.class)))
+                .thenThrow(new RuntimeException("Guardrail blocked the request"));
+
+        // Act & Assert
+        BedrockService.BedrockException exception = assertThrows(
+                BedrockService.BedrockException.class,
+                () -> serviceWithGuardrail.invokeModel(harmfulPrompt)
+        );
+        
+        assertTrue(exception.getMessage().contains("Failed to invoke Bedrock after 3 attempts"));
+        verify(bedrockClient, times(3)).invokeModel(any(InvokeModelRequest.class));
+    }
 }
+

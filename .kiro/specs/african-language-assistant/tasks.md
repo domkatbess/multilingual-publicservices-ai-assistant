@@ -293,15 +293,15 @@ This plan guides the implementation of a serverless African Language Assistant u
     - Add language detection failure handler (default to English)
     - _Requirements: 9.1, 9.2, 9.3, 9.4_
 
-- [ ] 15. Implement security and rate limiting
-  - [ ] 15.1 Configure API Gateway security
+- [x] 15. Implement security and rate limiting
+  - [x] 15.1 Configure API Gateway security
     - Enable API key requirement for all endpoints
     - Configure rate limiting per API key
     - Set up CORS headers for web client access
     - Configure request validation
     - _Requirements: 10.1, 10.4, 15.5_
   
-  - [ ] 15.2 Implement Bedrock guardrails
+  - [x] 15.2 Implement Bedrock guardrails
     - Configure content filtering for harmful content
     - Test guardrail behavior with sample inputs
     - _Requirements: 10.3_

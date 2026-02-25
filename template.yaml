@@ -14,6 +14,8 @@ Globals:
         AUDIO_BUCKET: !Ref AudioBucket
         AWS_REGION: !Ref AWS::Region
         BEDROCK_ENDPOINT: !Sub https://bedrock-runtime.${AWS::Region}.amazonaws.com
+        BEDROCK_GUARDRAIL_ID: !GetAtt BedrockGuardrail.GuardrailId
+        BEDROCK_GUARDRAIL_VERSION: !GetAtt BedrockGuardrailVersion.Version
         POLLY_ENDPOINT: !Sub https://polly.${AWS::Region}.amazonaws.com
         TRANSCRIBE_ENDPOINT: !Sub https://transcribe.${AWS::Region}.amazonaws.com
         DYNAMODB_ENDPOINT: !Sub https://dynamodb.${AWS::Region}.amazonaws.com
@@ -48,8 +50,79 @@ Resources:
             BurstLimit: 20
       Cors:
         AllowMethods: "'POST, GET, OPTIONS'"
-        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
         AllowOrigin: "'*'"
+        AllowCredentials: false
+        MaxAge: "'600'"
+      GatewayResponses:
+        THROTTLED:
+          StatusCode: 429
+          ResponseParameters:
+            Headers:
+              Access-Control-Allow-Origin: "'*'"
+              Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+          ResponseTemplates:
+            application/json: '{"error": true, "errorCode": "RATE_LIMIT_EXCEEDED", "message": "Too many requests. Please try again later.", "fallbackMessage": "Too many requests. Please try again later.", "retryable": true}'
+        UNAUTHORIZED:
+          StatusCode: 401
+          ResponseParameters:
+            Headers:
+              Access-Control-Allow-Origin: "'*'"
+              Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+          ResponseTemplates:
+            application/json: '{"error": true, "errorCode": "UNAUTHORIZED", "message": "Invalid or missing API key.", "fallbackMessage": "Invalid or missing API key.", "retryable": false}'
+        BAD_REQUEST_BODY:
+          StatusCode: 400
+          ResponseParameters:
+            Headers:
+              Access-Control-Allow-Origin: "'*'"
+              Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+          ResponseTemplates:
+            application/json: '{"error": true, "errorCode": "INVALID_REQUEST", "message": "Invalid request body.", "fallbackMessage": "Invalid request body.", "retryable": false}'
+      Models:
+        TextInputModel:
+          type: object
+          required:
+            - userId
+            - sessionId
+            - message
+          properties:
+            userId:
+              type: string
+              minLength: 1
+              maxLength: 128
+            sessionId:
+              type: string
+              minLength: 1
+              maxLength: 128
+            message:
+              type: string
+              minLength: 1
+              maxLength: 999
+            preferredLanguage:
+              type: string
+              enum: [ha, yo, ig, ff, en]
+        AudioInputModel:
+          type: object
+          required:
+            - userId
+            - sessionId
+            - audioData
+            - audioFormat
+          properties:
+            userId:
+              type: string
+              minLength: 1
+              maxLength: 128
+            sessionId:
+              type: string
+              minLength: 1
+              maxLength: 128
+            audioData:
+              type: string
+            audioFormat:
+              type: string
+              enum: [wav, mp3, m4a]
 
   # Lambda Functions
   InputHandlerFunction:
@@ -79,6 +152,10 @@ Resources:
             RestApiId: !Ref LanguageAssistantApi
             Path: /query
             Method: POST
+            RequestModel:
+              Model: TextInputModel
+              Required: true
+              ValidateBody: true
       LoggingConfig:
         LogGroup: !Ref InputHandlerLogGroup
 
@@ -126,6 +203,10 @@ Resources:
             RestApiId: !Ref LanguageAssistantApi
             Path: /audio
             Method: POST
+            RequestModel:
+              Model: AudioInputModel
+              Required: true
+              ValidateBody: true
       LoggingConfig:
         LogGroup: !Ref AudioHandlerLogGroup
 
@@ -265,12 +346,102 @@ Resources:
               - '*'
             MaxAge: 3000
 
+  # Bedrock Guardrail
+  BedrockGuardrail:
+    Type: AWS::Bedrock::Guardrail
+    Properties:
+      Name: !Sub language-assistant-guardrail-${Environment}
+      Description: Content filtering guardrail for African Language Assistant
+      BlockedInputMessaging: "I cannot process this request as it contains inappropriate content. Please rephrase your question."
+      BlockedOutputsMessaging: "I cannot provide a response to this request. Please ask a different question about public services."
+      ContentPolicyConfig:
+        FiltersConfig:
+          - Type: SEXUAL
+            InputStrength: HIGH
+            OutputStrength: HIGH
+          - Type: VIOLENCE
+            InputStrength: HIGH
+            OutputStrength: HIGH
+          - Type: HATE
+            InputStrength: HIGH
+            OutputStrength: HIGH
+          - Type: INSULTS
+            InputStrength: MEDIUM
+            OutputStrength: MEDIUM
+          - Type: MISCONDUCT
+            InputStrength: MEDIUM
+            OutputStrength: MEDIUM
+          - Type: PROMPT_ATTACK
+            InputStrength: HIGH
+            OutputStrength: NONE
+      TopicPolicyConfig:
+        TopicsConfig:
+          - Name: MedicalDiagnosis
+            Definition: "Medical diagnosis, treatment recommendations, or prescription advice"
+            Examples:
+              - "What medicine should I take for this illness?"
+              - "Do I have cancer based on these symptoms?"
+            Type: DENY
+          - Name: LegalAdvice
+            Definition: "Specific legal advice or representation"
+            Examples:
+              - "Should I sue this person?"
+              - "What's the best way to avoid taxes?"
+            Type: DENY
+      WordPolicyConfig:
+        WordsConfig:
+          - Text: "password"
+          - Text: "credit card"
+          - Text: "social security"
+        ManagedWordListsConfig:
+          - Type: PROFANITY
+
+  BedrockGuardrailVersion:
+    Type: AWS::Bedrock::GuardrailVersion
+    Properties:
+      GuardrailIdentifier: !GetAtt BedrockGuardrail.GuardrailId
+      Description: !Sub Version for ${Environment} environment
+
   # CloudWatch Log Groups
   InputHandlerLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/lambda/language-assistant-input-handler-${Environment}
       RetentionInDays: 7
+
+  # API Key for testing
+  LanguageAssistantApiKey:
+    Type: AWS::ApiGateway::ApiKey
+    DependsOn:
+      - LanguageAssistantApiStage
+    Properties:
+      Name: !Sub language-assistant-api-key-${Environment}
+      Description: API Key for African Language Assistant
+      Enabled: true
+      StageKeys:
+        - RestApiId: !Ref LanguageAssistantApi
+          StageName: !Ref Environment
+
+  LanguageAssistantApiStage:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      StageName: !Ref Environment
+      RestApiId: !Ref LanguageAssistantApi
+      DeploymentId: !Ref LanguageAssistantApiDeployment
+
+  LanguageAssistantApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId: !Ref LanguageAssistantApi
+
+  LanguageAssistantUsagePlanKey:
+    Type: AWS::ApiGateway::UsagePlanKey
+    DependsOn:
+      - LanguageAssistantApiKey
+    Properties:
+      KeyId: !Ref LanguageAssistantApiKey
+      KeyType: API_KEY
+      UsagePlanId: !Ref LanguageAssistantApi.UsagePlan
 
   AudioHandlerLogGroup:
     Type: AWS::Logs::LogGroup
@@ -326,6 +497,12 @@ Outputs:
     Export:
       Name: !Sub ${AWS::StackName}-ApiEndpoint
 
+  ApiKeyId:
+    Description: API Key ID for authentication
+    Value: !Ref LanguageAssistantApiKey
+    Export:
+      Name: !Sub ${AWS::StackName}-ApiKeyId
+
   SessionsTableName:
     Description: DynamoDB Sessions table name
     Value: !Ref SessionsTable
@@ -343,3 +520,15 @@ Outputs:
     Value: !Ref AudioBucket
     Export:
       Name: !Sub ${AWS::StackName}-AudioBucket
+
+  BedrockGuardrailId:
+    Description: Bedrock Guardrail ID for content filtering
+    Value: !GetAtt BedrockGuardrail.GuardrailId
+    Export:
+      Name: !Sub ${AWS::StackName}-GuardrailId
+
+  BedrockGuardrailVersion:
+    Description: Bedrock Guardrail Version
+    Value: !GetAtt BedrockGuardrailVersion.Version
+    Export:
+      Name: !Sub ${AWS::StackName}-GuardrailVersion
