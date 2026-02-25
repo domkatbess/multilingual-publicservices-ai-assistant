@@ -88,18 +88,36 @@ Resources:
       FunctionName: !Sub language-assistant-audio-handler-${Environment}
       Handler: org.springframework.cloud.function.adapter.aws.FunctionInvoker::handleRequest
       CodeUri: target/language-assistant-1.0.0-aws.jar
+      MemorySize: 512
+      Timeout: 30
       ReservedConcurrentExecutions: 10
       Environment:
         Variables:
-          SPRING_CLOUD_FUNCTION_DEFINITION: audioHandler
+          SPRING_CLOUD_FUNCTION_DEFINITION: audioHandlerFunction
       Policies:
         - S3CrudPolicy:
             BucketName: !Ref AudioBucket
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SessionsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ResponseCacheTable
         - Statement:
             - Effect: Allow
               Action:
                 - transcribe:StartTranscriptionJob
                 - transcribe:GetTranscriptionJob
+              Resource: '*'
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+              Resource: '*'
+            - Effect: Allow
+              Action:
+                - polly:SynthesizeSpeech
+              Resource: '*'
+            - Effect: Allow
+              Action:
+                - cloudwatch:PutMetricData
               Resource: '*'
       Events:
         AudioInput:
