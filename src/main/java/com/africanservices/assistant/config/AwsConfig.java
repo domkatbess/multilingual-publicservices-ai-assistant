@@ -69,4 +69,14 @@ public class AwsConfig {
                 .credentialsProvider(DefaultCredentialsProvider.create())
                 .build();
     }
+
+
+    @Bean
+    public software.amazon.awssdk.services.cloudwatch.CloudWatchClient cloudWatchClient() {
+        return software.amazon.awssdk.services.cloudwatch.CloudWatchClient.builder()
+                .region(Region.of(awsRegion))
+                .credentialsProvider(DefaultCredentialsProvider.create())
+                .build();
+    }
+
 }
