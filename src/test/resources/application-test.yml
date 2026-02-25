@@ -1,0 +1,44 @@
+spring:
+  application:
+    name: african-language-assistant-test
+
+aws:
+  region: us-east-1
+  dynamodb:
+    sessions-table: test-sessions
+    cache-table: test-cache
+  s3:
+    audio-bucket: test-audio
+  bedrock:
+    model-id: anthropic.claude-v2
+    temperature: 0.7
+    max-tokens: 1000
+  polly:
+    voices:
+      ha: Zeina
+      yo: Joanna
+      ig: Joanna
+      ff: Zeina
+      en: Joanna
+    engine: neural
+  transcribe:
+    language-code: en-US
+
+assistant:
+  session:
+    ttl-minutes: 30
+    context-window: 5
+  cache:
+    ttl-hours: 24
+  audio:
+    url-expiration-hours: 1
+    max-size-mb: 10
+  input:
+    max-length: 1000
+  rate-limit:
+    requests-per-minute: 10
+
+logging:
+  level:
+    root: WARN
+    com.africanservices: INFO

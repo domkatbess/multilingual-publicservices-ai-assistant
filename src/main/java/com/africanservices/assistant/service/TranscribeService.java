@@ -27,7 +27,7 @@ public class TranscribeService {
 
     private final TranscribeClient transcribeClient;
     private final S3Service s3Service;
-    private final StructuredLogger logger;
+    private final StructuredLogger logger = new StructuredLogger(TranscribeService.class);
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
     private final String audioBucketName;
@@ -38,13 +38,11 @@ public class TranscribeService {
     public TranscribeService(
             TranscribeClient transcribeClient, 
             S3Service s3Service, 
-            StructuredLogger logger,
             @Value("${aws.s3.audio-bucket:language-assistant-audio-dev}") String audioBucketName,
             @Value("${aws.transcribe.polling-interval-ms:2000}") long pollingIntervalMs,
             @Value("${aws.transcribe.max-polling-attempts:30}") int maxPollingAttempts) {
         this.transcribeClient = transcribeClient;
         this.s3Service = s3Service;
-        this.logger = logger;
         this.httpClient = HttpClient.newHttpClient();
         this.objectMapper = new ObjectMapper();
         this.audioBucketName = audioBucketName;

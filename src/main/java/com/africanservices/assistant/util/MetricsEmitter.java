@@ -1,5 +1,6 @@
 package com.africanservices.assistant.util;
 
+import org.springframework.stereotype.Component;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
 import software.amazon.awssdk.services.cloudwatch.model.Dimension;
 import software.amazon.awssdk.services.cloudwatch.model.MetricDatum;
@@ -16,6 +17,7 @@ import java.util.List;
  * 
  * Requirements: 12.3, 12.4
  */
+@Component
 public class MetricsEmitter {
     
     private static final String NAMESPACE = "AfricanLanguageAssistant";

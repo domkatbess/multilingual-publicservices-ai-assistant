@@ -1,6 +1,5 @@
 package com.africanservices.assistant.service;
 
-import com.africanservices.assistant.util.StructuredLogger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,9 +29,6 @@ class TranscribeServiceTest {
     @Mock
     private S3Service s3Service;
 
-    @Mock
-    private StructuredLogger logger;
-
     private TranscribeService transcribeService;
     
     private static final String AUDIO_BUCKET = "test-audio-bucket";
@@ -44,7 +40,6 @@ class TranscribeServiceTest {
         transcribeService = new TranscribeService(
                 transcribeClient, 
                 s3Service, 
-                logger,
                 AUDIO_BUCKET,
                 POLLING_INTERVAL_MS,
                 MAX_POLLING_ATTEMPTS
@@ -78,9 +73,6 @@ class TranscribeServiceTest {
         assertEquals(MediaFormat.MP3, request.mediaFormat());
         assertEquals(languageCode, request.languageCodeAsString());
         assertTrue(request.media().mediaFileUri().contains(fileId));
-
-        verify(logger).info(eq("Transcription job submitted: jobName={}, fileId={}, languageCode={}"), 
-                anyString(), eq(fileId), eq(languageCode));
     }
 
     @Test
@@ -148,8 +140,6 @@ class TranscribeServiceTest {
 
         // Assert
         assertNull(jobName);
-        verify(logger).warn(eq("Failed to submit transcription job: fileId={}, error={}"), 
-                eq(fileId), anyString());
     }
 
     @Test

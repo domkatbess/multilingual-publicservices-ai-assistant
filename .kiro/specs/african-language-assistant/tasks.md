@@ -209,7 +209,7 @@ This plan guides the implementation of a serverless African Language Assistant u
     - **Property 7: Transcription Cleanup**
     - **Validates: Requirements 2.5, 13.3**
 
-- [ ] 11. Checkpoint - Verify AWS service integrations
+- [x] 11. Checkpoint - Verify AWS service integrations
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 12. Implement InputHandlerFunction Lambda
